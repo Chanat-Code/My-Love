@@ -3,66 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ส่งหัวใจให้เธอ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>จีบสาว - เป็นแฟนกันไหม?</title>
     <style>
         body {
-            overflow: hidden;
-            background: linear-gradient(to bottom, #ff6b6b, #ff8e53);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffe6e6;
+            font-family: Arial, sans-serif;
+            position: relative;
         }
-        .heart {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #ff4d4d;
-            transform: rotate(-45deg);
-            animation: float 6s infinite;
-            opacity: 0.8;
+        h1 {
+            color: #ff4d4d;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 20px;
         }
-        .heart::before,
-        .heart::after {
-            content: '';
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #ff4d4d;
-            border-radius: 50%;
+        .button-container {
+            display: flex;
+            gap: 20px;
         }
-        .heart::before {
-            top: -15px;
-            left: 0;
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            transition: all 0.2s ease;
         }
-        .heart::after {
-            left: 15px;
-            top: 0;
+        #yesButton {
+            background-color: #ff4d4d;
+            color: white;
+            position: relative; /* Ensures it stays in place */
         }
-        @keyframes float {
-            0% {
-                transform: translateY(100vh) rotate(-45deg);
-                opacity: 0.8;
-            }
-            100% {
-                transform: translateY(-100vh) rotate(-45deg);
-                opacity: 0;
-            }
+        #noButton {
+            background-color: #ccc;
+            color: black;
+            position: relative;
         }
     </style>
 </head>
-<body class="h-screen flex items-center justify-center">
-    <div class="text-center text-white">
-        <h1 class="text-4xl md:text-6xl font-bold mb-4 animate-pulse">ส่งหัวใจให้เธอ 💖</h1>
-        <p class="text-xl md:text-2xl">เพราะเธอคือคนพิเศษในใจฉัน</p>
+<body>
+    <h1>เป็นแฟนกันไหม? 😊</h1>
+    <div class="button-container">
+        <button id="yesButton" onclick="alert('เย้! เราเป็นแฟนกันแล้วนะ! 🥰')">ใช่</button>
+        <button id="noButton">ไม่</button>
     </div>
+
     <script>
-        function createHeart() {
-            const heart = document.createElement('div');
-            heart.classList.add('heart');
-            heart.style.left = Math.random() * 100 + 'vw';
-            heart.style.animationDuration = Math.random() * 3 + 3 + 's';
-            document.body.appendChild(heart);
-            setTimeout(() => heart.remove(), 6000);
-        }
-        setInterval(createHeart, 300);
+        const noButton = document.getElementById('noButton');
+        
+        noButton.addEventListener('mouseover', () => {
+            const maxX = window.innerWidth - noButton.offsetWidth;
+            const maxY = window.innerHeight - noButton.offsetHeight;
+            const newX = Math.random() * maxX;
+            const newY = Math.random() * maxY;
+            
+            noButton.style.position = 'absolute';
+            noButton.style.left = newX + 'px';
+            noButton.style.top = newY + 'px';
+        });
     </script>
 </body>
 </html>
