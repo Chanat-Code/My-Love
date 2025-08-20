@@ -334,5 +334,98 @@
       window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='n'){ centerNearYes(); } });
     })();
   </script>
+  
+  <!-- Stabilizer patch: throttle moves, prevent re-entrancy, and auto-restore visibility/position -->
+  <script>
+    (function(){
+      const noButton = document.getElementById('noButton');
+      const yesButton = document.getElementById('yesButton');
+      if(!noButton || !yesButton) return;
+
+      // ensure visible and on top
+      noButton.style.display = 'inline-block';
+      noButton.style.zIndex = '9999';
+      noButton.style.position = 'fixed';
+
+      const clamp=(n,min,max)=> Math.max(min, Math.min(n,max));
+      const pad = ()=> Math.max(24, Math.min(innerWidth, innerHeight)*0.04);
+
+      const state = { moving:false, lastMove:0 };
+      function safePlace(x,y){
+        const r = noButton.getBoundingClientRect();
+        const p = pad();
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        noButton.style.left = clamp(x, p, maxX) + 'px';
+        noButton.style.top  = clamp(y, p, maxY) + 'px';
+      }
+
+      function centerUnderYes(){
+        const ry = yesButton.getBoundingClientRect();
+        const r  = noButton.getBoundingClientRect();
+        safePlace(ry.left + ry.width/2 - r.width/2, ry.bottom + 16);
+      }
+
+      // Throttled jump (max ~4 times/sec)
+      function jump(ev){
+        const now = performance.now();
+        if(state.moving || now - state.lastMove < 250) return;
+        state.moving = true;
+        const r = noButton.getBoundingClientRect();
+        const p = pad();
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        let nx = p + Math.random()*maxX;
+        let ny = p + Math.random()*maxY;
+        const pt = ev?.clientX ? {x:ev.clientX,y:ev.clientY} : (ev?.touches && ev.touches[0] ? {x:ev.touches[0].clientX,y:ev.touches[0].clientY} : null);
+        if(pt){
+          nx = clamp(r.left + r.width/2 - (pt.x - r.width*1.4), p, maxX);
+          ny = clamp(r.top  + r.height/2 - (pt.y - r.height*1.4), p, maxY);
+        }
+        requestAnimationFrame(()=>{
+          safePlace(nx, ny);
+          // micro bounce without translate to avoid desync
+          noButton.animate([
+            { transform:'scale(1) rotate(0)' },
+            { transform:'scale(1.12) rotate(6deg)' },
+            { transform:'scale(1) rotate(0)' }
+          ], { duration: 220, easing:'ease-out' });
+          state.moving = false; state.lastMove = performance.now();
+        });
+      }
+
+      // Bind clean listeners
+      noButton.onmouseover = jump;
+      noButton.onpointerenter = jump;
+      noButton.onfocus = jump;
+      noButton.ontouchstart = (e)=>{ e.preventDefault(); jump(e); };
+
+      document.addEventListener('pointermove', (e)=>{
+        const r = noButton.getBoundingClientRect();
+        const dist = Math.hypot(e.clientX - (r.left+r.width/2), e.clientY - (r.top+r.height/2));
+        if(dist < 130) jump(e);
+      }, {passive:true});
+
+      // Watchdog: keep on-screen and visible; restore if hidden
+      setInterval(()=>{
+        if(noButton.offsetParent === null || getComputedStyle(noButton).visibility === 'hidden'){
+          noButton.style.visibility = 'visible';
+          noButton.style.display = 'inline-block';
+          centerUnderYes();
+          return;
+        }
+        const r = noButton.getBoundingClientRect();
+        const p = pad();
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        if(r.left < p-2 || r.top < p-2 || r.right > innerWidth-p+2 || r.bottom > innerHeight-p+2){
+          safePlace(r.left, r.top);
+        }
+      }, 350);
+
+      // Initial placement after layout
+      window.addEventListener('load', ()=> requestAnimationFrame(centerUnderYes));
+    })();
+  </script>
 </body>
 </html>
