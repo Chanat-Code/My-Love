@@ -55,7 +55,7 @@
     #yesButton:hover{ transform: translateY(-1px) scale(1.03); box-shadow:0 12px 30px rgba(255,77,109,.35); }
     #yesButton:active{ transform: translateY(0) scale(.98); }
 
-    #noButton{ background:#f3f3f3; color:#333; position:fixed; min-width:78px; text-align:center; z-index:4; }
+    #noButton{ background:#f3f3f3; color:#333; position:fixed; min-width:78px; text-align:center; z-index:9999; will-change:left, top, transform }
 
     .burst{ position:fixed; font-size:20px; pointer-events:none; animation:burstAnim 900ms ease forwards; z-index:6 }
     @keyframes burstAnim{ 0%{opacity:1; transform:scale(1) translate(0,0)} 100%{opacity:0; transform:scale(2) translate(var(--x), var(--y))} }
@@ -246,6 +246,92 @@
         noButton.style.left = x + 'px';
         noButton.style.top  = y + 'px';
       }, 800);
+    })();
+  </script>
+  
+  <!-- Final safety net: keep the “No” button always on-screen and add quick-restore -->
+  <script>
+    (function(){
+      const noButton = document.getElementById('noButton');
+      const yesButton = document.getElementById('yesButton');
+      if(!noButton || !yesButton) return;
+
+      const clamp=(n,min,max)=> Math.max(min, Math.min(n,max));
+      const pad = ()=> Math.max(24, Math.min(innerWidth, innerHeight)*0.04);
+
+      function ensureInViewport(){
+        const r = noButton.getBoundingClientRect();
+        const p = pad();
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        const x = clamp(r.left, p, maxX);
+        const y = clamp(r.top , p, maxY);
+        // snap only if outside
+        if (Math.abs(x - r.left) > 1 || Math.abs(y - r.top) > 1){
+          noButton.style.position = 'fixed';
+          noButton.style.left = x + 'px';
+          noButton.style.top  = y + 'px';
+        }
+      }
+
+      function centerNearYes(){
+        const ry = yesButton.getBoundingClientRect();
+        const r  = noButton.getBoundingClientRect();
+        const p = pad();
+        let x = ry.left + ry.width/2 - r.width/2;
+        let y = ry.bottom + 16; // just under Yes
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        x = clamp(x, p, maxX); y = clamp(y, p, maxY);
+        noButton.style.position='fixed';
+        noButton.style.left = x + 'px';
+        noButton.style.top  = y + 'px';
+      }
+
+      // one-time placement after layout
+      window.addEventListener('load', ()=>{ requestAnimationFrame(centerNearYes); });
+
+      // stronger mover: always set fixed+clamp
+      window.moveNoButton = function(ev){
+        const r = noButton.getBoundingClientRect();
+        const p = pad();
+        const maxX = innerWidth  - r.width  - p;
+        const maxY = innerHeight - r.height - p;
+        let nx = p + Math.random()*maxX;
+        let ny = p + Math.random()*maxY;
+        const pt = ev?.clientX ? {x:ev.clientX,y:ev.clientY} : (ev?.touches && ev.touches[0] ? {x:ev.touches[0].clientX,y:ev.touches[0].clientY} : null);
+        if(pt){
+          const awayX = r.left + r.width/2 - (pt.x - r.width*1.4);
+          const awayY = r.top  + r.height/2 - (pt.y - r.height*1.4);
+          nx = clamp(awayX, p, maxX);
+          ny = clamp(awayY, p, maxY);
+        }
+        noButton.style.position='fixed';
+        noButton.style.left = nx + 'px';
+        noButton.style.top  = ny + 'px';
+        ensureInViewport();
+      }
+
+      // rebind listeners (in case of earlier overrides)
+      noButton.onmouseover = window.moveNoButton;
+      noButton.onpointerenter = window.moveNoButton;
+      noButton.onfocus = window.moveNoButton;
+      noButton.ontouchstart = (e)=>{ e.preventDefault(); window.moveNoButton(e); };
+
+      // proximity trigger
+      document.addEventListener('pointermove', (e)=>{
+        const r = noButton.getBoundingClientRect();
+        const dist = Math.hypot(e.clientX - (r.left+r.width/2), e.clientY - (r.top+r.height/2));
+        if(dist < 140) window.moveNoButton(e);
+      }, {passive:true});
+
+      // periodic clamp + on resize/visibility
+      const clampTimer = setInterval(ensureInViewport, 400);
+      window.addEventListener('resize', ensureInViewport, {passive:true});
+      document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) ensureInViewport(); });
+
+      // keyboard rescue: press N to recall "No" button near Yes
+      window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='n'){ centerNearYes(); } });
     })();
   </script>
 </body>
