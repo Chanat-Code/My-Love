@@ -427,5 +427,43 @@
       window.addEventListener('load', ()=> requestAnimationFrame(centerUnderYes));
     })();
   </script>
+  
+  <!-- Confetti fix: stop + clear the canvas after animation ends to prevent stuck pieces -->
+  <script>
+    (function(){
+      const canvas = document.getElementById('confetti');
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let rafId = null;
+
+      function clearConfetti(){
+        cancelAnimationFrame(rafId);
+        rafId = null;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+      }
+      window.clearConfetti = clearConfetti;
+
+      // Override celebrate to guarantee cleanup
+      window.celebrate = function(durationMs=1500){
+        const colors = ['#ff4d6d','#ffd166','#b8f2e6','#cdb4db','#95d5b2'];
+        const pieces=[]; const N=150; const H=innerHeight; const W=innerWidth;
+        for(let i=0;i<N;i++) pieces.push({ x: Math.random()*W, y: -20 - Math.random()*H*0.3, r: 4+Math.random()*6, s: 2+Math.random()*3, a: Math.random()*Math.PI*2, c: colors[i%colors.length] });
+        const start = performance.now();
+        cancelAnimationFrame(rafId);
+        function draw(t){
+          const elapsed=t-start;
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          pieces.forEach(p=>{ p.y += p.s; p.x += Math.sin(p.a+=0.05)*1.5; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r); ctx.restore(); });
+          if(elapsed < durationMs){ rafId = requestAnimationFrame(draw); }
+          else { clearConfetti(); }
+        }
+        rafId = requestAnimationFrame(draw);
+      };
+
+      // Also clear if tab hidden/resized quickly (prevents frozen frame)
+      document.addEventListener('visibilitychange', ()=>{ if(document.hidden) clearConfetti(); });
+      window.addEventListener('resize', clearConfetti, {passive:true});
+    })();
+  </script>
 </body>
 </html>
