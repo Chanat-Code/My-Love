@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>เป็นแฟนกันไหม 💘</title>
+  <title>ความลับ 💘</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
@@ -74,7 +74,7 @@
     #yesButton:active{ transform: translateY(0) scale(.98); }
 
     /* The evasive button */
-    #noButton{ background:#f3f3f3; color:#333; position:fixed; min-width:78px; text-align:center; z-index:4 }
+    #noButton{ background:#f3f3f3; color:#333; position:fixed; min-width:78px; text-align:center; z-index:4; will-change:left, top, transform }
 
     /* Burst emojis */
     .burst{ position:fixed; font-size:20px; pointer-events:none; animation:burstAnim 900ms ease forwards; z-index:6 }
@@ -192,12 +192,53 @@
       noButton.style.top  = y + 'px';
     }
     window.addEventListener('load', placeNoButtonInitial);
+    // keep the button inside viewport on resize
+    window.addEventListener('resize', ()=>{
+      const rect = noButton.getBoundingClientRect();
+      const pad = Math.max(24, Math.min(innerWidth, innerHeight)*0.04);
+      const maxX = innerWidth  - rect.width  - pad;
+      const maxY = innerHeight - rect.height - pad;
+      const newX = Math.min(Math.max(rect.left, pad), maxX);
+      const newY = Math.min(Math.max(rect.top,  pad), maxY);
+      noButton.style.left = newX + 'px';
+      noButton.style.top  = newY + 'px';
+    }, {passive:true});
 
-    function moveNoButton(){
-      const pad = 50;
-      const maxX = innerWidth  - noButton.offsetWidth  - pad;
-      const maxY = innerHeight - noButton.offsetHeight - pad;
-      const newX = clamp(pad + Math.random()*maxX, pad, maxX);
+    function moveNoButton(ev){
+      const rect = noButton.getBoundingClientRect();
+      // dynamic safe padding by screen size
+      const pad = Math.max(24, Math.min(innerWidth, innerHeight)*0.04);
+      const maxX = innerWidth  - rect.width  - pad;
+      const maxY = innerHeight - rect.height - pad;
+
+      // random target inside viewport bounds
+      let newX = pad + Math.random()*maxX;
+      let newY = pad + Math.random()*maxY;
+
+      // if we know the pointer, bias jump away from it (still clamped)
+      if(ev && (ev.clientX || (ev.touches && ev.touches[0]))){
+        const px = ev.clientX || ev.touches[0].clientX;
+        const py = ev.clientY || ev.touches[0].clientY;
+        const awayX = rect.left + (rect.width/2) - (px - rect.width*1.2);
+        const awayY = rect.top + (rect.height/2) - (py - rect.height*1.2);
+        newX = Math.min(maxX, Math.max(pad, awayX));
+        newY = Math.min(maxY, Math.max(pad, awayY));
+      }
+
+      const dx = newX - rect.left;
+      const dy = newY - rect.top;
+
+      if(!prefersReduced){
+        noButton.animate([
+          { transform:`translate(0,0)` },
+          { transform:`translate(${dx}px,${dy}px) scale(1.15) rotate(8deg)` },
+          { transform:`translate(${dx}px,${dy}px) scale(1) rotate(0)` }
+        ], { duration: 420, easing:'cubic-bezier(.2,.8,.2,1)', fill:'forwards' });
+      }
+      // snap the actual position to the safe target
+      noButton.style.left = newX + 'px';
+      noButton.style.top  = newY + 'px';
+    };
       const newY = clamp(pad + Math.random()*maxY, pad, maxY);
 
       const dx = newX - parseFloat(noButton.style.left || 0);
@@ -214,8 +255,9 @@
       noButton.style.top  = newY + 'px';
     }
     noButton.addEventListener('mouseover', moveNoButton);
+    noButton.addEventListener('pointerenter', moveNoButton);
     noButton.addEventListener('focus', moveNoButton); // keyboard accessibility
-    noButton.addEventListener('touchstart', (e)=>{ e.preventDefault(); moveNoButton(); }, {passive:false});
+    noButton.addEventListener('touchstart', (e)=>{ e.preventDefault(); moveNoButton(e); }, {passive:false});
 
     // ---------- Burst emojis on Yes ----------
     function burst(x,y){
