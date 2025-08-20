@@ -198,5 +198,55 @@
       }, {passive:true});
     })();
   </script>
+  
+  <!-- Hotfix: prevent off-screen by removing translate from animation and adding periodic clamp -->
+  <script>
+    (function(){
+      const noButton = document.getElementById('noButton');
+      if(!noButton) return;
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const safePad = ()=> Math.max(24, Math.min(innerWidth, innerHeight)*0.04);
+      const clamp=(n,min,max)=> Math.max(min, Math.min(n,max));
+
+      // Override mover to avoid translate-based animation (which can desync rect)
+      window.moveNoButton = function(ev){
+        const r = noButton.getBoundingClientRect();
+        const pad = safePad();
+        const maxX = innerWidth  - r.width  - pad;
+        const maxY = innerHeight - r.height - pad;
+        let newX = pad + Math.random()*maxX;
+        let newY = pad + Math.random()*maxY;
+        const pt = ev?.clientX ? {x:ev.clientX,y:ev.clientY} : (ev?.touches && ev.touches[0] ? {x:ev.touches[0].clientX,y:ev.touches[0].clientY} : null);
+        if(pt){
+          const awayX = r.left + r.width/2 - (pt.x - r.width*1.4);
+          const awayY = r.top  + r.height/2 - (pt.y - r.height*1.4);
+          newX = clamp(awayX, pad, maxX);
+          newY = clamp(awayY, pad, maxY);
+        }
+        noButton.style.position='fixed';
+        noButton.style.left = newX + 'px';
+        noButton.style.top  = newY + 'px';
+        if(!prefersReduced){
+          noButton.animate([
+            { transform:'scale(1) rotate(0)' },
+            { transform:'scale(1.12) rotate(6deg)' },
+            { transform:'scale(1) rotate(0)' }
+          ], { duration: 260, easing:'ease-out' });
+        }
+      };
+
+      // Guard: every 800ms clamp inside viewport
+      setInterval(()=>{
+        const r = noButton.getBoundingClientRect();
+        const pad = safePad();
+        const maxX = innerWidth  - r.width  - pad;
+        const maxY = innerHeight - r.height - pad;
+        const x = clamp(r.left, pad, maxX);
+        const y = clamp(r.top , pad, maxY);
+        noButton.style.left = x + 'px';
+        noButton.style.top  = y + 'px';
+      }, 800);
+    })();
+  </script>
 </body>
 </html>
